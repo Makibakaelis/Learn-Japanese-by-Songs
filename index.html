@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>J-Pop Music Player</title>
+    <style>
+        body { font-family: sans-serif; background: #121212; color: white; display: flex; margin: 0; height: 100vh; }
+        #sidebar { width: 300px; background: #1f1f1f; padding: 20px; overflow-y: auto; border-right: 1px solid #333; }
+        #main-content { flex: 1; display: flex; flex-direction: column; padding: 20px; }
+        .song-item { padding: 10px; background: #282828; margin-bottom: 10px; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
+        .song-item:hover { background: #3e3e3e; }
+        /* Thêm hiệu ứng highlight cho bài đang phát */
+        .song-item.active { background: #1db954; color: black; font-weight: bold; }
+        
+        #lyric-container { flex: 1; overflow-y: auto; text-align: center; padding: 20px; background: #181818; border-radius: 8px; margin-bottom: 20px; }
+        .lyric-block { margin-bottom: 25px; }
+        .kanji { font-size: 20px; font-weight: bold; color: #fff; margin-bottom: 4px; }
+        .reading { font-size: 14px; color: #aaa; margin-bottom: 6px; }
+        .meaning { font-size: 15px; color: #1db954; font-style: italic; }
+        
+        /* Khung chứa trình điều khiển nhạc */
+        #player-controls { display: flex; align-items: center; gap: 15px; background: #1f1f1f; padding: 15px; border-radius: 8px; }
+        audio { flex: 1; }
+        
+        /* Giao diện nút Ngẫu nhiên */
+        #shuffle-btn { 
+            padding: 12px 20px; 
+            background: #282828; 
+            color: #b3b3b3; 
+            border: 1px solid #444; 
+            border-radius: 20px; 
+            cursor: pointer; 
+            font-weight: bold;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        #shuffle-btn:hover { transform: scale(1.05); color: white; }
+        #shuffle-btn.active { background: #1db954; color: black; border-color: #1db954; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h3>Danh sách bài hát</h3>
+        <div id="playlist">Đang tải danh sách...</div>
+    </div>
+
+    <div id="main-content">
+        <h2 id="playing-title">Chọn một bài hát để bắt đầu</h2>
+        
+        <div id="lyric-container">
+            <p style="color: #666; margin-top: 100px;">Lời bài hát sẽ hiển thị ở đây</p>
+        </div>
+
+        <div id="player-controls">
+            <audio id="audio-player" controls></audio>
+            <button id="shuffle-btn" onclick="toggleShuffle()">🔀 Ngẫu nhiên: TẮT</button>
+        </div>
+    </div>
+
+    <script>
+        const audioPlayer = document.getElementById('audio-player');
+        const lyricContainer = document.getElementById('lyric-container');
+        const playingTitle = document.getElementById('playing-title');
+        const shuffleBtn = document.getElementById('shuffle-btn');
+
+        // BỘ LƯU TRỮ TRẠNG THÁI APP
+        let allSongs = [];       // Lưu danh sách toàn bộ bài hát từ server
+        let currentIndex = -1;   // Vị trí bài hát hiện tại đang phát
+        let isShuffle = false;   // Trạng thái nút Ngẫu nhiên (mặc định là TẮT)
+
+        // Hàm bật/tắt chế độ Ngẫu nhiên khi bấm nút
+        function toggleShuffle() {
+            isShuffle = !isShuffle;
+            if (isShuffle) {
+                shuffleBtn.innerText = "🔀 Ngẫu nhiên: BẬT";
+                shuffleBtn.classList.add('active');
+            } else {
+                shuffleBtn.innerText = "🔀 Ngẫu nhiên: TẮT";
+                shuffleBtn.classList.remove('active');
+            }
+        }
+
+        // Lấy dữ liệu từ Backend và dựng danh sách bài hát
+        async function loadPlaylist() {
+            try {
+                const response = await fetch('http://localhost:5000/api/playlist');
+                allSongs = await response.json();
+                
+                renderPlaylistVisual();
+            } catch (err) {
+                document.getElementById('playlist').innerText = "Không thể kết nối đến Server Node.js!";
+            }
+        }
+
+        // Hàm vẽ danh sách bài hát ra giao diện
+        function renderPlaylistVisual() {
+            const playlistDiv = document.getElementById('playlist');
+            playlistDiv.innerHTML = '';
+
+            allSongs.forEach((song, index) => {
+                const item = document.createElement('div');
+                // Nếu bài này đang phát thì thêm class 'active' để đổi màu nền
+                item.className = `song-item ${index === currentIndex ? 'active' : ''}`;
+                item.innerHTML = `<strong>${song.title}</strong><br><small>${song.artist}</small>`;
+                
+                item.onclick = () => {
+                    currentIndex = index;
+                    playSong(song);
+                };
+                playlistDiv.appendChild(item);
+            });
+        }
+
+        // Hàm xử lý phát nhạc và đổ lời bài hát
+        function playSong(song) {
+            playingTitle.innerText = `${song.title} - ${song.artist}`;
+            audioPlayer.src = song.audioUrl;
+            audioPlayer.play();
+
+            // Cập nhật lại giao diện danh sách để tô màu bài đang phát
+            renderPlaylistVisual();
+
+            // Đổ lời bài hát dạng xen kẽ 3 dòng
+            lyricContainer.innerHTML = '';
+            song.lyrics.forEach((line, index) => {
+                const block = document.createElement('div');
+                block.className = 'lyric-block';
+                block.innerHTML = `
+                    <div class="kanji">${line.kanji || ''}</div>
+                    <div class="reading">${line.reading || ''}</div>
+                    <div class="meaning">${line.translate || ''}</div>
+                `;
+                lyricContainer.appendChild(block);
+            });
+            lyricContainer.scrollTop = 0; 
+        }
+
+        // TỰ ĐỘNG CHUYỂN BÀI KHI HẾT BÀI (Xử lý logic cốt lõi)
+        audioPlayer.onended = () => {
+            if (allSongs.length === 0) return;
+
+            if (isShuffle) {
+                // CHẾ ĐỘ NGẪU NHIÊN: Chọn một vị trí bất kỳ trong mảng danh sách bài hát
+                let randomIndex = Math.floor(Math.random() * allSongs.length);
+                
+                // Mẹo nhỏ: Nếu danh sách có nhiều hơn 1 bài, hạn chế việc quay trúng lại bài vừa phát
+                if (allSongs.length > 1) {
+                    while (randomIndex === currentIndex) {
+                        randomIndex = Math.floor(Math.random() * allSongs.length);
+                    }
+                }
+                currentIndex = randomIndex;
+            } else {
+                // CHẾ ĐỘ THƯỜNG: Tăng vị trí lên 1. Nếu đang ở bài cuối cùng, tự động quay về bài đầu tiên (index 0)
+                currentIndex = (currentIndex + 1) % allSongs.length;
+            }
+
+            // Phát bài hát mới đã được chọn
+            playSong(allSongs[currentIndex]);
+        };
+
+        // Chạy tải playlist khi mở app
+        loadPlaylist();
+    </script>
+</body>
+</html>

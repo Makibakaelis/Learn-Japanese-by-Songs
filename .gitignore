@@ -1,0 +1,8 @@
+# Chặn thư mục cài đặt của Node.js (Bắt buộc)
+node_modules/
+
+# Chặn thư mục musicdata (chứa full nhạc, dễ dính bản quyền, nặng)
+musicdata/
+
+# Giữ lại bài Lemon của goat Kenshiyonezu hi vọng anh không đánh bản quyền =)))
+!musicdata/lemon_kenshiyonezu/
