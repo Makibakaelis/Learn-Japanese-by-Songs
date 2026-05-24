@@ -69,6 +69,11 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// Cho phép gửi file favicon về trình duyệt
+app.get('/favicon.png', (req, res) => {
+    res.sendFile(path.join(__dirname, 'favicon.png'));
+});
+
 // Khởi chạy server
 app.listen(PORT, () => {
     console.log(`Server nhạc đang chạy tại: http://localhost:${PORT}`);
