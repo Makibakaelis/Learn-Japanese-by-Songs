@@ -4,6 +4,7 @@ const path = require('path');
 const cors = require('cors');
 
 const app = express();
+app.use(express.json()); // Giúp server đọc được dữ liệu JSON từ body của request POST
 app.use(cors()); // Cho phép Frontend truy cập dữ liệu không bị chặn
 
 const PORT = 5000;
@@ -72,6 +73,40 @@ app.get('/', (req, res) => {
 // Cho phép gửi file favicon về trình duyệt
 app.get('/favicon.png', (req, res) => {
     res.sendFile(path.join(__dirname, 'favicon.png'));
+});
+
+// API: Tiếp nhận timestamp mới và ghi đè thẳng vào file JSON cục bộ
+app.post('/api/save-lyric', (req, res) => {
+    const { songId, lyrics } = req.body;
+
+    // Kiểm tra bảo vệ: Nếu thiếu dữ liệu thì từ chối xử lý
+    if (!songId || !lyrics) {
+        return res.status(400).json({ error: "Dữ liệu gửi lên bị thiếu cấu trúc!" });
+    }
+
+    try {
+        // 1. Tự động dò tìm đường dẫn tới file .json của bài hát dựa trên songId (tên thư mục)
+        const jsonFilePath = path.join(__dirname, 'musicdata', songId, `${songId}.json`);
+
+        // 2. Đọc nội dung hiện tại của file JSON đó ra để giữ lại các thông tin cũ (title, artist, audioUrl...)
+        const fileContent = fs.readFileSync(jsonFilePath, 'utf8');
+        const songData = JSON.parse(fileContent);
+
+        // 3. Cập nhật mảng lyrics mới (đã có kèm timestamp) đè vào mảng cũ
+        songData.lyrics = lyrics;
+
+        // 4. Ghi đè toàn bộ dữ liệu mới xuống file JSON (null, 4 giúp file tự thụt lề định dạng lại cho đẹp mắt)
+        fs.writeFileSync(jsonFilePath, JSON.stringify(songData, null, 4), 'utf8');
+
+        console.log(`[Git-Audio] Đã cập nhật thành công timestamp cho bài: ${songId}`);
+        
+        // Trả về thông báo thành công cho Frontend vui lòng
+        res.json({ success: true, message: "Đã lưu vào file JSON thành công!" });
+
+    } catch (error) {
+        console.error("Lỗi nghiêm trọng khi ghi file:", error);
+        res.status(500).json({ error: "Server không thể ghi đè file. Kiểm tra lại đường dẫn file JSON!" });
+    }
 });
 
 // Khởi chạy server

@@ -6,67 +6,133 @@
     <link rel="icon" type="image/png" href="favicon.png">
     <style>
         body { font-family: sans-serif; background: #121212; color: white; display: flex; margin: 0; height: 100vh; }
-        #sidebar { width: 300px; background: #1f1f1f; padding: 20px; overflow-y: auto; border-right: 1px solid #333; display: flex; flex-direction: column; }
-        #main-content { flex: 1; display: flex; flex-direction: column; padding: 20px; }
+        #sidebar {
+            width: 300px; background: #1f1f1f; padding: 20px; overflow-y: auto; border-right: 1px solid #333; display: flex; flex-direction: column; 
+            -ms-overflow-style: none;  /* Cho IE và Edge cũ */
+            scrollbar-width: none;     /* Cho Firefox */
+        }
+        #sidebar::-webkit-scrollbar, 
+        #playlist::-webkit-scrollbar,
+        #sidebar *::-webkit-scrollbar {
+            display: none !important;
+        }
+        /* Bổ sung thêm luật chặn cho Firefox/IE trên các thành phần con */
+        #playlist {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        #main-content { flex: 1; display: flex; flex-direction: column; padding: 20px; position: relative; }
         
-        /* Giao diện Ô tìm kiếm */
+        /* Ô tìm kiếm */
         #search-input {
-            width: 100%;
-            padding: 10px 12px;
-            background: #282828;
-            border: 1px solid #444;
-            border-radius: 6px;
-            color: white;
-            font-size: 14px;
-            margin-bottom: 15px;
-            box-sizing: border-box; /* Chống tràn viền sidebar */
-            transition: border-color 0.2s;
+            width: 100%; padding: 10px 12px; background: #282828; border: 1px solid #444; 
+            border-radius: 6px; color: white; font-size: 14px; margin-bottom: 15px; box-sizing: border-box; transition: border-color 0.2s;
         }
-        #search-input:focus {
-            outline: none;
-            border-color: #1db954; /* Đổi sang viền xanh Spotify khi gõ */
-        }
+        #search-input:focus { outline: none; border-color: #1db954; }
 
         #playlist { flex: 1; overflow-y: auto; }
         .song-item { padding: 10px; background: #282828; margin-bottom: 10px; cursor: pointer; border-radius: 4px; transition: background 0.2s; }
         .song-item:hover { background: #3e3e3e; }
         .song-item.active { background: #1db954; color: black; font-weight: bold; }
         
+        /* Khu vực hiển thị lời bài hát */
         #lyric-container { flex: 1; overflow-y: auto; text-align: center; padding: 20px; background: #181818; border-radius: 8px; margin-bottom: 20px; }
-        .lyric-block { margin-bottom: 25px; }
+    
+        /* Khung chứa một câu hát */
+        .lyric-block { 
+            display: flex; align-items: center; justify-content: center; gap: 15px;
+            margin-bottom: 25px; padding: 10px; border-radius: 6px;
+
+            opacity: 1;
+            transform: scale(0.96); /* Thu nhỏ nhẹ một chút */
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1); /* Đường cong chuyển động mượt 2 chiều */
+        }
+        .lyric-text-group { flex: 1; text-align: center; } /* Đẩy phần chữ ra giữa */
+        
         .kanji { font-size: 20px; font-weight: bold; color: #fff; margin-bottom: 4px; }
         .reading { font-size: 14px; color: #aaa; margin-bottom: 6px; }
         .meaning { font-size: 15px; color: #1db954; font-style: italic; }
         
+        /* Badge hiển thị Timestamp ở chế độ xem */
+        .timestamp-badge {
+            font-size: 12px; background: #333; color: #1db954; padding: 3px 6px; 
+            border-radius: 4px; font-family: monospace; font-weight: bold;
+        }
+
+        /* Giao diện các ô nhập liệu khi sửa Timestamp */
+        .edit-controls { display: flex; align-items: center; gap: 8px; }
+        .time-input { 
+            width: 70px; padding: 5px; background: #282828; border: 1px solid #555; 
+            color: #1db954; font-family: monospace; text-align: center; border-radius: 4px; 
+        }
+        .sync-btn { 
+            padding: 5px 10px; background: #1db954; color: black; border: none; 
+            border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 12px; 
+        }
+        .sync-btn:hover { background: #1ed760; }
+
+        /* Khung chứa các nút chức năng (Sửa, Lưu) */
+        #toolbar { display: flex; gap: 10px; position: absolute; top: 20px; right: 20px; z-index: 10;}
+        .tool-btn {
+            padding: 10px 15px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; transition: all 0.2s;
+        }
+        #edit-toggle-btn { background: #282828; color: white; border: 1px solid #444; }
+        #edit-toggle-btn.active { background: #e22134; color: white; border-color: #e22134; }
+        #save-btn { background: #1db954; color: black; display: none; } /* Mặc định ẩn, chỉ hiện khi sửa */
+
         #player-controls { display: flex; align-items: center; gap: 15px; background: #1f1f1f; padding: 15px; border-radius: 8px; }
         audio { flex: 1; }
         
         #shuffle-btn { 
-            padding: 12px 20px; 
-            background: #282828; 
-            color: #b3b3b3; 
-            border: 1px solid #444; 
-            border-radius: 20px; 
-            cursor: pointer; 
-            font-weight: bold;
-            font-size: 14px;
-            transition: all 0.2s ease;
+            padding: 12px 20px; background: #282828; color: #b3b3b3; border: 1px solid #444; 
+            border-radius: 20px; cursor: pointer; font-weight: bold; font-size: 14px; transition: all 0.2s ease;
         }
         #shuffle-btn:hover { transform: scale(1.05); color: white; }
         #shuffle-btn.active { background: #1db954; color: black; border-color: #1db954; }
+
+        /* Hiệu ứng nổi bật cho câu hát đang phát */
+        .lyric-block.highlighted {
+            background: #232323;
+            opacity: 1; /* Làm rõ hoàn toàn câu đang phát */
+            transform: scale(1); /* Phóng to nhẹ câu hát lên 3% */
+            border-left: 4px solid #1db954; /* Thêm vạch xanh Spotify bên trái */
+            border-radius: 6px;
+            box-shadow: 0 4px 20px rgba(29, 185, 84,0.15);
+            transition: all 0.3s ease; /* Tạo hiệu ứng chuyển đổi mượt mà */
+        }
+        /* Đổi chữ Kanji của câu đang phát sang màu trắng sáng, chữ nghĩa tiếng Việt sang màu xanh sáng */
+        .lyric-block.highlighted .kanji { color: #ffffff; text-shadow: 0 0 8px rgba(255,255,255,0.5); }
+        .lyric-block.highlighted .reading { color: #aaa; font-weight: bold; }
+        .lyric-block.highlighted .meaning { color: #1ed760; font-weight: bold; }
+
+
+        /* Ẩn thanh cuộn trên các trình duyệt hiện đại (Chrome, Edge, Safari) */
+        #lyric-container::-webkit-scrollbar {
+            display: none;
+        }
+        /* Ẩn thanh cuộn trên Firefox và IE cũ */
+        #lyric-container {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
     </style>
 </head>
 <body>
 
     <div id="sidebar">
         <h3>Danh sách bài hát</h3>
-        <input type="text" id="search-input" placeholder="🔍 Tìm tên bài hát, ca sĩ..." oninput="renderPlaylistVisual()">
+        <input type="text" id="search-input" placeholder="🔍 Tìm tên, ca sĩ, file mp3..." oninput="renderPlaylistVisual()">
         <div id="playlist">Đang tải danh sách...</div>
     </div>
 
     <div id="main-content">
         <h2 id="playing-title">Chọn một bài hát để bắt đầu</h2>
         
+        <div id="toolbar">
+            <button id="edit-toggle-btn" class="tool-btn" onclick="toggleEditMode()">✏️ Chỉnh sửa Timestamp</button>
+            <button id="save-btn" class="tool-btn" onclick="saveLyricsToBackend()">💾 Lưu thay đổi</button>
+        </div>
+
         <div id="lyric-container">
             <p style="color: #666; margin-top: 100px;">Lời bài hát sẽ hiển thị ở đây</p>
         </div>
@@ -83,10 +149,13 @@
         const playingTitle = document.getElementById('playing-title');
         const shuffleBtn = document.getElementById('shuffle-btn');
         const searchInput = document.getElementById('search-input');
+        const editToggleBtn = document.getElementById('edit-toggle-btn');
+        const saveBtn = document.getElementById('save-btn');
 
         let allSongs = [];       
         let currentIndex = -1;   
         let isShuffle = false;   
+        let isEditMode = false;   // THÊM: Trạng thái đang sửa hay đang xem lyrics
 
         function toggleShuffle() {
             isShuffle = !isShuffle;
@@ -99,6 +168,26 @@
             }
         }
 
+        // THÊM: Bật / Tắt chế độ chỉnh sửa
+        function toggleEditMode() {
+            if (currentIndex === -1) {
+                alert("Vui lòng chọn một bài hát trước khi chỉnh sửa!");
+                return;
+            }
+            isEditMode = !isEditMode;
+            if (isEditMode) {
+                editToggleBtn.innerText = "❌ Hủy chỉnh sửa";
+                editToggleBtn.classList.add('active');
+                saveBtn.style.display = "block"; // Hiện nút Lưu
+            } else {
+                editToggleBtn.innerText = "✏️ Chỉnh sửa Timestamp";
+                editToggleBtn.classList.remove('active');
+                saveBtn.style.display = "none";  // Ẩn nút Lưu
+            }
+            // Vẽ lại lời bài hát dựa theo chế độ mới chọn
+            renderLyricsVisual();
+        }
+
         async function loadPlaylist() {
             try {
                 const response = await fetch('http://localhost:5000/api/playlist');
@@ -109,27 +198,18 @@
             }
         }
 
-        // HÀM VẼ DANH SÁCH CÓ TÍCH HỢP BỘ LỌC TÌM KIẾM THÔNG MINH
         function renderPlaylistVisual() {
             const playlistDiv = document.getElementById('playlist');
             playlistDiv.innerHTML = '';
-
-            // Lấy từ khóa bạn gõ và chuyển thành chữ thường để so sánh không phân biệt hoa thường
             const keyword = searchInput.value.toLowerCase().trim();
 
             allSongs.forEach((song, index) => {
-                // Tách lấy tên file mp3 từ đường dẫn URL (Ví dụ: "gira-gira.mp3")
                 const mp3FileName = song.audioUrl.split('/').pop().toLowerCase();
-
-                // Kiểm tra xem từ khóa có nằm trong: Tên bài, Tên ca sĩ, hoặc Tên file MP3 không
                 const isTitleMatch = song.title.toLowerCase().includes(keyword);
                 const isArtistMatch = song.artist.toLowerCase().includes(keyword);
                 const isFileMatch = mp3FileName.includes(keyword);
 
-                // Nếu có gõ từ khóa nhưng KHÔNG khớp với bất kỳ điều kiện nào ➔ Ẩn bài hát đó đi
-                if (keyword !== "" && !isTitleMatch && !isArtistMatch && !isFileMatch) {
-                    return; 
-                }
+                if (keyword !== "" && !isTitleMatch && !isArtistMatch && !isFileMatch) return; 
 
                 const item = document.createElement('div');
                 item.className = `song-item ${index === currentIndex ? 'active' : ''}`;
@@ -137,12 +217,15 @@
                 
                 item.onclick = () => {
                     currentIndex = index;
+                    isEditMode = false; // Tự động tắt chế độ sửa khi đổi bài hát khác
+                    editToggleBtn.innerText = "✏️ Chỉnh sửa Timestamp";
+                    editToggleBtn.classList.remove('active');
+                    saveBtn.style.display = "none";
                     playSong(song);
                 };
                 playlistDiv.appendChild(item);
             });
 
-            // Nếu không tìm thấy bài nào thì hiển thị thông báo trống
             if (playlistDiv.innerHTML === '') {
                 playlistDiv.innerHTML = `<p style="color: #666; text-align: center; font-size: 14px; margin-top: 20px;">Không tìm thấy bài hát nào phù hợp</p>`;
             }
@@ -152,22 +235,157 @@
             playingTitle.innerText = `${song.title} - ${song.artist}`;
             audioPlayer.src = song.audioUrl;
             audioPlayer.play();
-
             renderPlaylistVisual();
+            renderLyricsVisual(); // Gọi hàm vẽ lời bài hát riêng biệt
+        }
 
+        // THÊM: Hàm tách biệt chuyên phục vụ việc vẽ lời bài hát (View vs Edit)
+        function renderLyricsVisual() {
+            if (currentIndex === -1) return;
+            const song = allSongs[currentIndex];
+            
             lyricContainer.innerHTML = '';
+            
             song.lyrics.forEach((line, index) => {
                 const block = document.createElement('div');
                 block.className = 'lyric-block';
-                block.innerHTML = `
+                
+                // Khung chứa nội dung chữ (3 tầng như cũ)
+                const textGroup = document.createElement('div');
+                textGroup.className = 'lyric-text-group';
+                textGroup.innerHTML = `
                     <div class="kanji">${line.kanji || ''}</div>
                     <div class="reading">${line.reading || ''}</div>
                     <div class="meaning">${line.translate || ''}</div>
                 `;
+
+                // KIỂM TRA CHẾ ĐỘ HIỂN THỊ
+                if (isEditMode) {
+                    // CHẾ ĐỘ SỬA: Thêm TextBox nhập thời gian và Nút "Chộp giờ" thông minh
+                    const editControls = document.createElement('div');
+                    editControls.className = 'edit-controls';
+                    
+                    // Điền thời gian cũ nếu có (mặc định trống nếu chưa có)
+                    const currentTimeVal = line.time || ''; 
+                    
+                    editControls.innerHTML = `
+                        <input type="text" class="time-input" id="time-input-${index}" value="${currentTimeVal}" placeholder="mm:ss">
+                        <button class="sync-btn" onclick="captureCurrentTime(${index})">⏱️ Nhập</button>
+                    `;
+                    
+                    block.appendChild(editControls); // Đặt bộ nhập liệu ở bên trái
+                    block.appendChild(textGroup);     // Nội dung chữ ở bên phải
+                } else {
+                    // CHẾ ĐỘ XEM THƯỜNG: Nếu có timestamp thì hiển thị badge nhỏ xinh, không thì thôi (Tương thích ngược)
+                    if (line.time) {
+                        const badge = document.createElement('span');
+                        badge.className = 'timestamp-badge';
+                        badge.innerText = line.time;
+                        block.appendChild(badge);
+                    }
+                    block.appendChild(textGroup);
+                }
+
                 lyricContainer.appendChild(block);
             });
-            lyricContainer.scrollTop = 0; 
+            
+            if (!isEditMode) lyricContainer.scrollTop = 0; 
         }
+
+        // THÊM: Hàm "Chộp giờ" tự động điền vào ô textbox khi nghe nhạc
+        function captureCurrentTime(index) {
+            const currentSeconds = audioPlayer.currentTime;
+            
+            // Định dạng giây thành mm:ss (Ví dụ: 75.5 giây ➔ 01:15)
+            const minutes = Math.floor(currentSeconds / 60);
+            const seconds = Math.floor(currentSeconds % 60);
+            const formattedTime = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            
+            // Điền thẳng chuỗi mm:ss vừa chộp được vào ô Textbox tương ứng
+            const inputField = document.getElementById(`time-input-${index}`);
+            if (inputField) {
+                inputField.value = formattedTime;
+            }
+        }
+
+        // THÊM: Gom dữ liệu từ các ô nhập liệu và gửi lên Backend để lưu đè file JSON
+        async function saveLyricsToBackend() {
+            if (currentIndex === -1) return;
+            const song = allSongs[currentIndex];
+
+            // Duyệt qua tất cả các dòng lyric và lấy giá trị trong ô input ra điền vào mảng
+            const updatedLyrics = song.lyrics.map((line, index) => {
+                const inputField = document.getElementById(`time-input-${index}`);
+                return {
+                    ...line, // Giữ nguyên các trường kanji, reading, translate
+                    time: inputField ? inputField.value.trim() : (line.time || '') // Lấy giờ mới nhập
+                };
+            });
+
+            try {
+                // Gửi request POST lên API Backend (Chúng ta sẽ viết API này ở bước sau)
+                const response = await fetch('http://localhost:5000/api/save-lyric', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        songId: song.id, // ID chính là tên thư mục bài hát (Ví dụ: "Gira_Gira")
+                        lyrics: updatedLyrics
+                    })
+                });
+
+                const result = await response.json();
+                if (response.ok) {
+                    alert("🎉 Tuyệt vời! Đã cập nhật Timestamp vào file JSON thành công.");
+                    // Cập nhật lại bộ nhớ tạm ở Frontend để không cần tải lại trang
+                    song.lyrics = updatedLyrics;
+                    toggleEditMode(); // Tắt chế độ sửa, quay về chế độ xem
+                } else {
+                    alert("❌ Lỗi từ server: " + result.error);
+                }
+            } catch (err) {
+                alert("❌ Không thể kết nối tới Backend để lưu file! Hãy đảm bảo bạn đã viết API ở backend.");
+            }
+        }
+
+        // TỰ ĐỘNG NỔI BẬT VÀ CUỘN THEO LỜI NHẠC KHI ĐANG PHÁT
+        audioPlayer.ontimeupdate = () => {
+            // Nếu đang ở chế độ chỉnh sửa hoặc chưa chọn bài thì không chạy tính năng này
+            if (isEditMode || currentIndex === -1) return; 
+
+            const song = allSongs[currentIndex];
+            const currentTime = audioPlayer.currentTime;
+            let activeIndex = -1;
+
+            // Vòng lặp thần thánh: Tìm xem giây hiện tại của bài hát khớp với câu nào nhất
+            for (let i = 0; i < song.lyrics.length; i++) {
+                const lineTime = timeStringToSeconds(song.lyrics[i].time);
+                if (lineTime !== -1 && currentTime >= lineTime) {
+                    activeIndex = i; // Tạm thời ghi nhận câu này đang phát
+                } else if (lineTime !== -1 && currentTime < lineTime) {
+                    break; // Nếu thời gian câu tiếp theo lớn hơn giờ hiện tại -> dừng tìm kiếm
+                }
+            }
+
+            // Nếu tìm thấy câu đang phát, tiến hành nhuộm màu và cuộn màn hình
+            if (activeIndex !== -1) {
+                const blocks = lyricContainer.getElementsByClassName('lyric-block');
+                
+                for (let i = 0; i < blocks.length; i++) {
+                    if (i === activeIndex) {
+                        // Nếu câu này chưa được highlight thì mới xử lý (tránh chạy lặp đi lặp lại)
+                        if (!blocks[i].classList.contains('highlighted')) {
+                            blocks[i].classList.add('highlighted');
+                            
+                            // TUYỆT CHIÊU TỰ ĐỘNG CUỘN: Đưa câu hát đang phát ra CHÍNH GIỮA khung nhìn cực mượt
+                            blocks[i].scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }
+                    } else {
+                        // Xóa highlight của tất cả các câu còn lại
+                        blocks[i].classList.remove('highlighted');
+                    }
+                }
+            }
+        };
 
         audioPlayer.onended = () => {
             if (allSongs.length === 0) return;
@@ -188,6 +406,14 @@
         };
 
         loadPlaylist();
+
+        // Hàm đổi chuỗi "mm:ss" thành tổng số giây (Ví dụ: "01:15" -> 75 giây)
+        function timeStringToSeconds(timeStr) {
+            if (!timeStr) return -1;
+            const parts = timeStr.split(':');
+            if (parts.length !== 2) return -1;
+            return parseInt(parts[0], 10) * 60 + parseFloat(parts[1]);
+        }
     </script>
 </body>
 </html>
